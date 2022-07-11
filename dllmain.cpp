@@ -2,6 +2,7 @@
 #include "framework.h"
 
 bool flag = false;
+HOOK_TRACE_INFO hLoadLibraryWHook = { NULL };
 HOOK_TRACE_INFO hGetDefaultPrinterWHook = { NULL };
 HOOK_TRACE_INFO hEnumPrintersWHook = { NULL };
 HOOK_TRACE_INFO hOpenPrinterWHook = { NULL };
@@ -167,15 +168,19 @@ HMODULE WINAPI TramplinedLoadLibraryW (
 
 void __stdcall NativeInjectionEntryPoint(REMOTE_ENTRY_INFO* inRemoteInfo)
 {
+    auto hModule = TrueLoadLibraryW(L"kernel32.dll");
+    if (!hModule)
+    {
+        OutputDebugStringW(L"Can't load kernel32.dll");
+    }
 
-    // Perform hooking
-	HOOK_TRACE_INFO hHook = { NULL }; // keep track of our hook
+    TrueLoadLibraryW = (HMODULE (WINAPI*)(LPCWSTR))GetProcAddress(hModule, "LoadLibraryW");
 
     NTSTATUS result = LhInstallHook(
 		TrueLoadLibraryW,
 		TramplinedLoadLibraryW,
 		NULL,
-		&hHook);
+		&hLoadLibraryWHook);
 	if (FAILED(result))
 	{
 		std::wstring s(RtlGetLastErrorString());
@@ -187,15 +192,11 @@ void __stdcall NativeInjectionEntryPoint(REMOTE_ENTRY_INFO* inRemoteInfo)
 	}
     if (inRemoteInfo->UserDataSize == sizeof(bool))
 	{
-		bool value = *reinterpret_cast<bool*>(inRemoteInfo->UserData);
-		if (value)
-        {
-           result = RhWakeUpProcess();
-           if (FAILED(result))
-	        {
-		        std::wstring s(RtlGetLastErrorString());
-		        OutputDebugStringW((std::wstring(L"Error: ") + s).c_str());
-	        }
-        }
+        result = RhWakeUpProcess();
+        if (FAILED(result))
+	    {
+		    std::wstring s(RtlGetLastErrorString());
+		    OutputDebugStringW((std::wstring(L"Error: ") + s).c_str());
+	    }
 	} 
 }

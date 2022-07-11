@@ -6,3 +6,5 @@
 #include <winspool.h>
 #include <string>
 #include <easyhook.h>
+
+extern "C" void __declspec(dllexport) __stdcall NativeInjectionEntryPoint(REMOTE_ENTRY_INFO* inRemoteInfo);
